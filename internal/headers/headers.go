@@ -66,3 +66,9 @@ func validTokens(data string) bool {
 	}
 	return true
 }
+
+func (h Headers) Get(key string) (string, bool) {
+	key = strings.ToLower(key)
+	v, ok := h[key]
+	return v, ok
+}
