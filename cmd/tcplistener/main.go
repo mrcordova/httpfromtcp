@@ -41,6 +41,8 @@ func main() {
 			fmt.Printf("- %s: %s\n", key, val)
 		}
 	
+		fmt.Println("Body:")
+		fmt.Printf("%s", req.Body)
 	}
 }
 
