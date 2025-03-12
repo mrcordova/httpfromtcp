@@ -55,6 +55,9 @@ func (h Headers) Set(key, value string) {
 		h[lowerKey] = value
 	}
 }
+func (h Headers) Remove(key string)  {
+	delete(h, strings.ToLower(key))
+}
 
 func (h  Headers) Override(key, value string)  {
 	lowerKey := strings.ToLower(key)

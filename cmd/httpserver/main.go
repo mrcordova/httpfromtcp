@@ -1,9 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/mrcordova/httpfromtcp/internal/request"
@@ -11,7 +16,7 @@ import (
 	"github.com/mrcordova/httpfromtcp/internal/server"
 )
 const port = 42069
-
+const httpbinUrl = "https://httpbin.org/stream"
 func main() {
 	server, err := server.Serve(port, handler)
 	if err != nil {
@@ -34,7 +39,16 @@ func handler(w *response.Writer, req *request.Request) {
 	if req.RequestLine.RequestTarget == "/myproblem" {
 		handler500(w, req)
 		return
-	}
+	} 
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/"){
+		n, err := strconv.Atoi(strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/"))
+		if err != nil {
+			// return
+			log.Fatalf("no number found in httpbin route")
+		}
+		handlerProxy(w, req, n)
+		return
+	}	
 	handler200(w, req)
 	return
 }
@@ -92,5 +106,37 @@ func handler200(w *response.Writer, _ *request.Request) {
 	h.Override("Content-Type", "text/html")
 	w.WriteHeaders(h)
 	w.WriteBody(body)
+	return
+}
+
+func handlerProxy(w *response.Writer, _ *request.Request, n int)  {
+	w.WriteStatusLine(response.StatusCodeSuccess)
+	h := response.GetDefaultHeaders(0)
+	h.Set("Transfer-Encoding", "chunked")
+	h.Remove("Content-Length")
+	w.WriteHeaders(h)
+	// fmt.Print(h)
+	resp, err := http.Get(fmt.Sprintf("%s/%v", httpbinUrl, n))
+	if err != nil {
+		// fmt.Println("here")
+		log.Fatalf("get response failed: %s", err)
+		return
+	}
+	defer resp.Body.Close()
+	buf := make([]byte, 32)
+	for {
+		bytesRead, err := io.ReadFull(resp.Body, buf)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			if err != io.ErrUnexpectedEOF {
+				log.Fatalf("%s", err)
+			}
+		}
+		w.WriteChunkedBody(buf[:bytesRead])
+	}
+	w.WriteChunkedBodyDone()
+
 	return
 }
