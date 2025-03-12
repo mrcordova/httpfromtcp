@@ -56,6 +56,11 @@ func (h Headers) Set(key, value string) {
 	}
 }
 
+func (h  Headers) Override(key, value string)  {
+	lowerKey := strings.ToLower(key)
+	h[lowerKey] = value
+}
+
 func validTokens(data string) bool {
 	for _, char := range data {
 		if unicode.IsDigit(char) == false && unicode.IsLetter(char) == false && strings.Contains(specialCharacters, string(char)) == false  {
