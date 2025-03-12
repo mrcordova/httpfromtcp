@@ -129,7 +129,6 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 	defer resp.Body.Close()
 	buf := make([]byte, 32)
 	body := make([]byte, 0)
-	// totalBytesRead := 0
 	for {
 		bytesRead, err := io.ReadFull(resp.Body, buf)
 		if err != nil {
@@ -142,7 +141,6 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 		}
 		w.WriteChunkedBody(buf[:bytesRead])
 		body = append(body, buf[:bytesRead]...)
-		// totalBytesRead += bytesRead
 	}
 	hash := sha256.Sum256(body)
 	
@@ -156,18 +154,18 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 }
 func handlerVideo(w *response.Writer, _ *request.Request) {
 	w.WriteStatusLine(response.StatusCodeSuccess)
-	h := response.GetDefaultHeaders(0)
-	h.Override("Content-Type", "video/mp4")
-	h.Remove("Content-Length")
+	
 	data, err := os.ReadFile("assets/vim.mp4")
 	if err != nil {
-		log.Fatal(err)
+		handler500(w, nil)
+		return
 	}
+	h := response.GetDefaultHeaders(len(data))
+	h.Override("Content-Type", "video/mp4")
 	w.WriteStatusLine(response.StatusCodeSuccess)
 	w.WriteHeaders(h)
 	w.WriteBody(data)
-	// h.Set("Transfer-Encoding", "chunked")
-	// h.Override("Trailer", "X-Content-SHA256, X-Content-Length")	
+
 
 	h.Remove("Content-Length")
 }
