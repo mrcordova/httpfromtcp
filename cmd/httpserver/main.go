@@ -42,14 +42,13 @@ func handler(w *response.Writer, req *request.Request) {
 		return
 	} 
 	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/"){
-		// n, err := strconv.Atoi(strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/"))
-		// if err != nil {
-		// 	// return
-		// 	log.Fatalf("no number found in httpbin route")
-		// }
 		handlerProxy(w, req)
 		return
-	}	
+	}
+	if req.RequestLine.RequestTarget == "/video" && req.RequestLine.Method == "GET" {
+		handlerVideo(w, req)
+		return
+	}
 	handler200(w, req)
 	return
 }
@@ -117,7 +116,7 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 	h.Override("Trailer", "X-Content-SHA256, X-Content-Length")	
 
 	h.Remove("Content-Length")
-	fmt.Println(h)
+	// fmt.Println(h)
 	w.WriteHeaders(h)
 	target := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/")
 	url := "https://httpbin.org/" + target
@@ -154,4 +153,21 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 	w.WriteChunkedBodyDone()
 
 	return
+}
+func handlerVideo(w *response.Writer, _ *request.Request) {
+	w.WriteStatusLine(response.StatusCodeSuccess)
+	h := response.GetDefaultHeaders(0)
+	h.Override("Content-Type", "video/mp4")
+	h.Remove("Content-Length")
+	data, err := os.ReadFile("assets/vim.mp4")
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.WriteStatusLine(response.StatusCodeSuccess)
+	w.WriteHeaders(h)
+	w.WriteBody(data)
+	// h.Set("Transfer-Encoding", "chunked")
+	// h.Override("Trailer", "X-Content-SHA256, X-Content-Length")	
+
+	h.Remove("Content-Length")
 }
