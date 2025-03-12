@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/mrcordova/httpfromtcp/internal/server"
 )
 const port = 42069
-const httpbinUrl = "https://httpbin.org/stream"
 func main() {
 	server, err := server.Serve(port, handler)
 	if err != nil {
@@ -40,13 +38,13 @@ func handler(w *response.Writer, req *request.Request) {
 		handler500(w, req)
 		return
 	} 
-	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/"){
-		n, err := strconv.Atoi(strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/"))
-		if err != nil {
-			// return
-			log.Fatalf("no number found in httpbin route")
-		}
-		handlerProxy(w, req, n)
+	if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/"){
+		// n, err := strconv.Atoi(strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/"))
+		// if err != nil {
+		// 	// return
+		// 	log.Fatalf("no number found in httpbin route")
+		// }
+		handlerProxy(w, req)
 		return
 	}	
 	handler200(w, req)
@@ -109,17 +107,18 @@ func handler200(w *response.Writer, _ *request.Request) {
 	return
 }
 
-func handlerProxy(w *response.Writer, _ *request.Request, n int)  {
+func handlerProxy(w *response.Writer, req *request.Request)  {
 	w.WriteStatusLine(response.StatusCodeSuccess)
 	h := response.GetDefaultHeaders(0)
 	h.Set("Transfer-Encoding", "chunked")
 	h.Remove("Content-Length")
 	w.WriteHeaders(h)
-	// fmt.Print(h)
-	resp, err := http.Get(fmt.Sprintf("%s/%v", httpbinUrl, n))
+	target := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/")
+	url := "https://httpbin.org/" + target
+	fmt.Println("Proxying to", url)
+	resp, err := http.Get(url)
 	if err != nil {
-		// fmt.Println("here")
-		log.Fatalf("get response failed: %s", err)
+		handler500(w, req)
 		return
 	}
 	defer resp.Body.Close()
