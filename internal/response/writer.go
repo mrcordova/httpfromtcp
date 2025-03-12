@@ -69,3 +69,23 @@ func (w *Writer) WriteChunkedBodyDone() (int, error)  {
 	}
 	return w.writer.Write(fmt.Appendf(nil, "%x\r\n\r\n", 0))
 }
+
+func (w *Writer) WriteTrailers(h headers.Headers)  error {
+	_, err := w.writer.Write([]byte("0\r\n"))
+	if err != nil {
+		return err
+	}
+	for k, v := range h {
+		// fmt.Println(k, v)
+		// lowerK := strings.ToLower(k)
+		_, err := w.writer.Write(fmt.Appendf(nil, "%s: %s\r\n", k, v))
+		if err != nil {
+			return err
+		}
+	}
+	_, err = w.writer.Write([]byte("\r\n"))
+	if err != nil {
+		return err
+	}
+	return nil
+}

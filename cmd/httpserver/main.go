@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/mrcordova/httpfromtcp/internal/headers"
 	"github.com/mrcordova/httpfromtcp/internal/request"
 	"github.com/mrcordova/httpfromtcp/internal/response"
 	"github.com/mrcordova/httpfromtcp/internal/server"
@@ -111,7 +114,10 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 	w.WriteStatusLine(response.StatusCodeSuccess)
 	h := response.GetDefaultHeaders(0)
 	h.Set("Transfer-Encoding", "chunked")
+	h.Override("Trailer", "X-Content-SHA256, X-Content-Length")	
+
 	h.Remove("Content-Length")
+	fmt.Println(h)
 	w.WriteHeaders(h)
 	target := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/")
 	url := "https://httpbin.org/" + target
@@ -123,6 +129,8 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 	}
 	defer resp.Body.Close()
 	buf := make([]byte, 32)
+	body := make([]byte, 0)
+	// totalBytesRead := 0
 	for {
 		bytesRead, err := io.ReadFull(resp.Body, buf)
 		if err != nil {
@@ -134,7 +142,15 @@ func handlerProxy(w *response.Writer, req *request.Request)  {
 			}
 		}
 		w.WriteChunkedBody(buf[:bytesRead])
+		body = append(body, buf[:bytesRead]...)
+		// totalBytesRead += bytesRead
 	}
+	hash := sha256.Sum256(body)
+	
+	w.WriteTrailers(headers.Headers{
+		"X-Content-Sha256": hex.EncodeToString(hash[:]),
+		"X-Content-Length": fmt.Sprint(len(body)),
+	})
 	w.WriteChunkedBodyDone()
 
 	return
